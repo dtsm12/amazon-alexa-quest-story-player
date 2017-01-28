@@ -16,7 +16,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>maitland.net</groupId>
+            <groupId>net.maitland</groupId>
             <artifactId>quest-story-player</artifactId>
             <version>LATEST</version>
         </dependency>

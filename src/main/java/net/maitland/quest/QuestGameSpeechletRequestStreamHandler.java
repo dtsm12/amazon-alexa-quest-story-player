@@ -23,7 +23,7 @@ public final class QuestGameSpeechletRequestStreamHandler extends
          * Alexa Skill and put the relevant Application Ids in this Set.
          */
         supportedApplicationIds = new HashSet<>();
-        supportedApplicationIds.add("amzn1.ask.skill.96e03200-5a4b-4433-930f-918740cb234f");
+        supportedApplicationIds.add("amzn1.ask.skill.22191f24-1113-41c7-8419-a6787a54da7b");
     }
 
     public QuestGameSpeechletRequestStreamHandler() {

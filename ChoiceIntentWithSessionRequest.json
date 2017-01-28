@@ -1,0 +1,86 @@
+{
+  "session": {
+    "sessionId": "SessionId.d4f0162f-e313-42b8-adce-89d9a2d2aee0",
+    "application": {
+      "applicationId": "amzn1.ask.skill.22191f24-1113-41c7-8419-a6787a54da7b"
+    },
+    "attributes": {
+      "GAME_INSTANCE": {
+        "questPath": [
+          "start"
+        ],
+        "currentState": {
+          "attributes": {
+            "[dice]": "0",
+            " = ": " == ",
+            "[numberToRoll]": "0",
+            "{random 1, 6}": "(Math.floor(Math.random() * 6) + 1).toString()",
+            "[alcohol]": "0",
+            "[is drunk]": "false",
+            "[gold]": "10",
+            "[tried to hush cat]": "false",
+            " or ": " || ",
+            "[introDisplay]": "none",
+            "[has whisky]": "false",
+            " greater ": "  >",
+            "{random 0, 100}": "(Math.floor(Math.random() * 100) + 1).toString()",
+            "[beat champ armwrestler]": "false",
+            " lower ": " < ",
+            " and ": " && ",
+            "[has beer]": "false",
+            "[has peanuts]": "false",
+            "[ate peanuts]": "false",
+            "[has golden trophy]": "false",
+            "not ": "! ",
+            "[beat weak armwrestler]": "false"
+          }
+        },
+        "previousState": {
+          "attributes": {
+            "[dice]": "0",
+            " = ": " == ",
+            "[numberToRoll]": "0",
+            "{random 1, 6}": "(Math.floor(Math.random() * 6) + 1).toString()",
+            "[alcohol]": "0",
+            "[is drunk]": "false",
+            "[gold]": "0",
+            "[tried to hush cat]": "false",
+            " or ": " || ",
+            "[has whisky]": "false",
+            " greater ": "  >",
+            "{random 0, 100}": "(Math.floor(Math.random() * 100) + 1).toString()",
+            "[beat champ armwrestler]": "false",
+            " lower ": " < ",
+            " and ": " && ",
+            "[has beer]": "false",
+            "[has peanuts]": "false",
+            "[ate peanuts]": "false",
+            "[has golden trophy]": "false",
+            "not ": "! ",
+            "[beat weak armwrestler]": "false"
+          }
+        }
+      }
+    },
+    "user": {
+      "userId": "amzn1.ask.account.AGF4NXBZD6SEHFZ3CL3SOZJJOZ3EDS4T2VOIP5SZHGYMM4B3CBOCPFX76GPKLEIJEWIEIJAEJFS42A5BD5DKBKXBT3QLZUIWUVMZHCVBHR4DUAULG2WHDYAETQSMXXB5AG5GJYFXGJG7MQMPKJLYYIDODUDBAY64YXNU6SXYJVRD46FBL3XB6PK6SPM4SSXYJ6CPMBBOIKKB5XY"
+    },
+    "new": false
+  },
+  "request": {
+    "type": "IntentRequest",
+    "requestId": "EdwRequestId.865ba154-4f97-4ff8-b67e-567c0cc0da0e",
+    "locale": "en-GB",
+    "timestamp": "2017-01-28T11:18:55Z",
+    "intent": {
+      "name": "Choose",
+      "slots": {
+        "Choice": {
+          "name": "Choice",
+          "value": "1"
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
