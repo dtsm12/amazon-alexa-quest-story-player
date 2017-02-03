@@ -233,7 +233,7 @@ public class QuestGameSpeechlet implements Speechlet {
         Quest q = null;
         InputStream is = null;
         try {
-            is = ConsolePlayer.class.getClassLoader().getResourceAsStream("bargames-quest.xml");
+            is = ConsolePlayer.class.getClassLoader().getResourceAsStream("chance-quest.xml");
             SaxQuestParser qp = new SaxQuestParser();
             q = qp.parseQuest(is);
 
