@@ -72,6 +72,8 @@ public class QuestGameSpeechlet implements Speechlet {
         // response text
         StringBuilder response = new StringBuilder();
 
+        boolean hasEnded = false;
+
         try {
 
             // convert choice number
@@ -82,21 +84,33 @@ public class QuestGameSpeechlet implements Speechlet {
 
             // get GameInstance
             GameInstance gameInstance = getGameInstance(session, quest);
-            QuestStateStation station = quest.getNextStation(gameInstance, choice);
-            response.append(getStationPassage(station));
+            QuestStateStation station = null;
+
+            if(choice == 0)
+            {
+                response.append(quest.getAbout().getTitle());
+            }
+
+            // keep adding text until zero or more than 1 choice
+            while(station == null || station.getChoices().size() == 1) {
+                choice = station == null ? choice : 1;
+                station = quest.getNextStation(gameInstance, choice);
+                response.append(getStationPassage(station));
+            }
+
+            if (response.length() == 0 || station.getChoices().size() == 0) {
+                hasEnded = true;
+                clearQuestInstance(session);
+            }
+
         } catch (Exception e) {
             response.append("Encountered the following error.");
             response.append(e.getMessage());
-            response.append(". Restarting story.");
+            hasEnded = true;
             clearQuestInstance(session);
         }
 
-        if (response.length() == 0) {
-            response.append("Story has ended.");
-            clearQuestInstance(session);
-        }
-
-        return newAskResponse(response.toString(), response.toString());
+        return newAskResponse(response.toString(), response.toString(), hasEnded);
     }
 
     protected GameInstance getGameInstance(Session session, Quest quest) throws QuestStateException {
@@ -106,8 +120,7 @@ public class QuestGameSpeechlet implements Speechlet {
 
         Object gameData = session.getAttribute(GAME_INSTANCE);
 
-        if(gameData != null)
-        {
+        if (gameData != null) {
             log.debug("Found {} attribute in session: {}", GAME_INSTANCE, gameData);
             Map gameDataMap = (Map) gameData;
             Object questPath = gameDataMap.get("questPath");
@@ -183,7 +196,7 @@ public class QuestGameSpeechlet implements Speechlet {
     private SpeechletResponse getHelp() {
         String speechOutput =
                 "This is a story. Good eh?";
-        return newAskResponse(speechOutput, speechOutput);
+        return newAskResponse(speechOutput, speechOutput, true);
     }
 
     /**
@@ -194,7 +207,7 @@ public class QuestGameSpeechlet implements Speechlet {
      * @param repromptText the reprompt for if the user doesn't reply or is misunderstood.
      * @return SpeechletResponse the speechlet response
      */
-    private SpeechletResponse newAskResponse(String stringOutput, String repromptText) {
+    private SpeechletResponse newAskResponse(String stringOutput, String repromptText, boolean noResponse) {
         PlainTextOutputSpeech outputSpeech = new PlainTextOutputSpeech();
         outputSpeech.setText(stringOutput);
 
@@ -203,24 +216,37 @@ public class QuestGameSpeechlet implements Speechlet {
         Reprompt reprompt = new Reprompt();
         reprompt.setOutputSpeech(repromptOutputSpeech);
 
-        return SpeechletResponse.newAskResponse(outputSpeech, reprompt);
+        SpeechletResponse response = null;
+
+        if(noResponse) {
+            SpeechletResponse.newTellResponse(outputSpeech);
+        }
+        else {
+            SpeechletResponse.newAskResponse(outputSpeech, reprompt);
+        }
+
+        return response;
     }
 
     protected String getStationPassage(QuestStateStation questStation) {
         List<QuestStateChoice> choices;
         StringBuilder passage = new StringBuilder();
 
+        passage.append(questStation.getText());
+
         choices = questStation.getChoices();
 
-        if (choices.size() != 0) {
+        if (choices.size() == 1) {
 
-            passage.append(questStation.getText());
+            passage.append(choices.get(0).getText());
+
+        } else if (choices.size() != 0) {
 
             passage.append("These are your choices. ");
 
-            for (int i=0; i < choices.size(); i++) {
+            for (int i = 0; i < choices.size(); i++) {
                 QuestStateChoice c = choices.get(i);
-                passage.append(String.format("Option %s: %s. ", i+1, c.getText()));
+                passage.append(String.format("Option %s: %s. ", i + 1, c.getText()));
             }
 
             passage.append(" Make your choice. ");
