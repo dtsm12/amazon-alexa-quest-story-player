@@ -10,24 +10,19 @@
 package net.maitland.quest;
 
 import com.amazon.speech.slu.Intent;
-import com.amazon.speech.slu.Slot;
 import com.amazon.speech.speechlet.*;
 import com.amazon.speech.ui.PlainTextOutputSpeech;
 import com.amazon.speech.ui.Reprompt;
-import net.maitland.quest.model.GameInstance;
-import net.maitland.quest.model.Quest;
-import net.maitland.quest.model.QuestState;
+import net.maitland.quest.model.*;
+import net.maitland.quest.model.Game;
+import net.maitland.quest.parser.sax.SaxQuestParser;
 import net.maitland.quest.player.ConsolePlayer;
-import net.maitland.quest.player.QuestStateChoice;
-import net.maitland.quest.player.QuestStateException;
-import net.maitland.quest.player.QuestStateStation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 
@@ -82,19 +77,26 @@ public class QuestGameSpeechlet implements Speechlet {
             // Get quest
             Quest quest = getQuest();
 
-            // get GameInstance
-            GameInstance gameInstance = getGameInstance(session, quest);
-            QuestStateStation station = null;
+            // get Game
+            Game game = getGame(session, quest);
+            GameStation station = null;
 
+            // add quest info if just starting
             if(choice == 0)
             {
                 response.append(quest.getAbout().getTitle());
+                response.append(" by ");
+                response.append(quest.getAbout().getAuthor());
+                response.append('\n');
+                response.append(quest.getAbout().getIntro());
+                response.append('\n');
             }
 
             // keep adding text until zero or more than 1 choice
             while(station == null || station.getChoices().size() == 1) {
                 choice = station == null ? choice : 1;
-                station = quest.getNextStation(gameInstance, choice);
+                game.setChoiceIndex(choice);
+                station = quest.getNextStation(game);
                 response.append(getStationPassage(station));
             }
 
@@ -104,6 +106,7 @@ public class QuestGameSpeechlet implements Speechlet {
             }
 
         } catch (Exception e) {
+            log.error("Error getting next passage.s", e);
             response.append("Encountered the following error.");
             response.append(e.getMessage());
             hasEnded = true;
@@ -113,31 +116,26 @@ public class QuestGameSpeechlet implements Speechlet {
         return newAskResponse(response.toString(), response.toString(), hasEnded);
     }
 
-    protected GameInstance getGameInstance(Session session, Quest quest) throws QuestStateException {
-        GameInstance gameInstance = quest.newGameInstance();
+    protected Game getGame(Session session, Quest quest) throws Exception {
+
+        Game game = null;
 
         log.debug("Getting {} attribute from session", GAME_INSTANCE);
 
         Object gameData = session.getAttribute(GAME_INSTANCE);
 
-        if (gameData != null) {
+        if (gameData == null) {
+            game = quest.newGameInstance();
+        }
+        else {
             log.debug("Found {} attribute in session: {}", GAME_INSTANCE, gameData);
             Map gameDataMap = (Map) gameData;
-            Object questPath = gameDataMap.get("questPath");
-            log.debug("Found questPath in session as {}", questPath.getClass().getName());
-            Object currentState = gameDataMap.get("currentState");
-            log.debug("Found currentState in session as {}", currentState.getClass().getName());
-            Object previousState = gameDataMap.get("previousState");
-            log.debug("Found previousState in session as {}", previousState.getClass().getName());
-
-            gameInstance.setQuestPath(new ArrayDeque<String>((List<String>) questPath));
-            gameInstance.setQuestState(new QuestState(((Map<String, Map<String, String>>) currentState).get("attributes")));
-            gameInstance.setPreviousQuestState(new QuestState(((Map<String, Map<String, String>>) previousState).get("attributes")));
+            game = Game.fromCollectionStructure(gameDataMap);
         }
 
-        session.setAttribute(GAME_INSTANCE, gameInstance);
+        session.setAttribute(GAME_INSTANCE, game);
 
-        return gameInstance;
+        return game;
     }
 
     protected void clearQuestInstance(Session session) {
@@ -219,17 +217,17 @@ public class QuestGameSpeechlet implements Speechlet {
         SpeechletResponse response = null;
 
         if(noResponse) {
-            SpeechletResponse.newTellResponse(outputSpeech);
+            response = SpeechletResponse.newTellResponse(outputSpeech);
         }
         else {
-            SpeechletResponse.newAskResponse(outputSpeech, reprompt);
+            response = SpeechletResponse.newAskResponse(outputSpeech, reprompt);
         }
 
         return response;
     }
 
-    protected String getStationPassage(QuestStateStation questStation) {
-        List<QuestStateChoice> choices;
+    protected String getStationPassage(GameStation questStation) {
+        List<GameChoice> choices;
         StringBuilder passage = new StringBuilder();
 
         passage.append(questStation.getText());
@@ -245,8 +243,8 @@ public class QuestGameSpeechlet implements Speechlet {
             passage.append("These are your choices. ");
 
             for (int i = 0; i < choices.size(); i++) {
-                QuestStateChoice c = choices.get(i);
-                passage.append(String.format("Option %s: %s. ", i + 1, c.getText()));
+                GameChoice c = choices.get(i);
+                passage.append(String.format("Option %s: %s", i + 1, c.getText()));
             }
 
             passage.append(" Make your choice. ");
