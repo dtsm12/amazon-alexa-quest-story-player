@@ -106,7 +106,7 @@ public class QuestGameSpeechlet implements Speechlet {
             }
 
         } catch (Exception e) {
-            log.error("Error getting next passage.s", e);
+            log.error("Error getting next passage.", e);
             response.append("Encountered the following error.");
             response.append(e.getMessage());
             hasEnded = true;
