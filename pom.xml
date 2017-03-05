@@ -4,7 +4,7 @@
     <groupId>maitland.net</groupId>
     <artifactId>amazon-alexa-quest-story-player</artifactId>
     <packaging>jar</packaging>
-    <version>1.0</version>
+    <version>1.1.0</version>
     <name>Amazon Alexa Quest Story Player</name>
 
 

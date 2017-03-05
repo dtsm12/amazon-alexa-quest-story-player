@@ -34,28 +34,50 @@ public class QuestGameSpeechlet implements Speechlet {
 
     private static final String GAME_INSTANCE = "GAME_INSTANCE";
 
-    /**
-     * The key to get the item from the intent.
-     */
-    private static final String ITEM_SLOT = "Item";
-
     @Override
-    public void onSessionStarted(final SessionStartedRequest request, final Session session)
+    public SpeechletResponse onIntent(final IntentRequest request, final Session session)
             throws SpeechletException {
-        log.info("onSessionStarted requestId={}, sessionId={}", request.getRequestId(),
+        log.info("onIntent requestId={}, sessionId={}", request.getRequestId(),
                 session.getSessionId());
 
-        // any initialization logic goes here
+        Intent intent = request.getIntent();
+        String intentName = (intent != null) ? intent.getName() : null;
+
+        log.debug("intentName={}", intentName);
+        for (String slotName : intent.getSlots().keySet()) {
+            log.debug("slotName={}, slotValue={}", slotName, intent.getSlot(slotName).getValue());
+        }
+
+        if ("Choice".equals(intentName)) {
+            return speakNextPassage(session, intent.getSlot("Choice").getValue());
+        } else if ("Choose".equals(intentName)) {
+            return speakNextPassage(session, intent.getSlot("Choice").getValue());
+        } else if ("AMAZON.YesIntent".equals(intentName)) {
+            return restartQuest(session);
+        } else if ("AMAZON.NoIntent".equals(intentName)) {
+            clearQuestInstance(session);
+            PlainTextOutputSpeech outputSpeech = new PlainTextOutputSpeech();
+            outputSpeech.setText("Goodbye");
+            return SpeechletResponse.newTellResponse(outputSpeech);
+        } else if ("AMAZON.HelpIntent".equals(intentName)) {
+            return getHelp();
+        } else if ("AMAZON.StopIntent".equals(intentName)) {
+            PlainTextOutputSpeech outputSpeech = new PlainTextOutputSpeech();
+            outputSpeech.setText("Goodbye");
+            return SpeechletResponse.newTellResponse(outputSpeech);
+        } else if ("AMAZON.CancelIntent".equals(intentName)) {
+            PlainTextOutputSpeech outputSpeech = new PlainTextOutputSpeech();
+            outputSpeech.setText("Goodbye");
+
+            return SpeechletResponse.newTellResponse(outputSpeech);
+        } else {
+            throw new SpeechletException("Invalid Intent");
+        }
     }
 
-    @Override
-    public SpeechletResponse onLaunch(final LaunchRequest request, final Session session)
-            throws SpeechletException {
-        log.info("onLaunch requestId={}, sessionId={}", request.getRequestId(),
-                session.getSessionId());
-
-        // Here we are prompting the user for input
-        return speakNextPassage(session);
+    protected SpeechletResponse restartQuest(final Session session) {
+        clearQuestInstance(session);
+        return speakNextPassage(session, "0", false);
     }
 
     public SpeechletResponse speakNextPassage(Session session) {
@@ -63,6 +85,10 @@ public class QuestGameSpeechlet implements Speechlet {
     }
 
     public SpeechletResponse speakNextPassage(Session session, String choiceNumber) {
+        return speakNextPassage(session, choiceNumber, true);
+    }
+
+    public SpeechletResponse speakNextPassage(Session session, String choiceNumber, boolean includeIntroAtStart) {
 
         // response text
         StringBuilder response = new StringBuilder();
@@ -82,8 +108,7 @@ public class QuestGameSpeechlet implements Speechlet {
             GameStation station = null;
 
             // add quest info if just starting
-            if(choice == 0)
-            {
+            if (choice == 0 && includeIntroAtStart) {
                 response.append(quest.getAbout().getTitle());
                 response.append(" by ");
                 response.append(quest.getAbout().getAuthor());
@@ -93,7 +118,7 @@ public class QuestGameSpeechlet implements Speechlet {
             }
 
             // keep adding text until zero or more than 1 choice
-            while(station == null || station.getChoices().size() == 1) {
+            while (station == null || station.getChoices().size() == 1) {
                 choice = station == null ? choice : 1;
                 game.setChoiceIndex(choice);
                 station = quest.getNextStation(game);
@@ -101,8 +126,8 @@ public class QuestGameSpeechlet implements Speechlet {
             }
 
             if (response.length() == 0 || station.getChoices().size() == 0) {
-                hasEnded = true;
                 clearQuestInstance(session);
+                response.append("Do you want to play again ?");
             }
 
         } catch (Exception e) {
@@ -126,8 +151,7 @@ public class QuestGameSpeechlet implements Speechlet {
 
         if (gameData == null) {
             game = quest.newGameInstance();
-        }
-        else {
+        } else {
             log.debug("Found {} attribute in session: {}", GAME_INSTANCE, gameData);
             Map gameDataMap = (Map) gameData;
             game = Game.fromCollectionStructure(gameDataMap);
@@ -140,50 +164,6 @@ public class QuestGameSpeechlet implements Speechlet {
 
     protected void clearQuestInstance(Session session) {
         session.setAttribute(GAME_INSTANCE, null);
-    }
-
-    @Override
-    public SpeechletResponse onIntent(final IntentRequest request, final Session session)
-            throws SpeechletException {
-        log.info("onIntent requestId={}, sessionId={}", request.getRequestId(),
-                session.getSessionId());
-
-        Intent intent = request.getIntent();
-        String intentName = (intent != null) ? intent.getName() : null;
-
-        log.debug("intentName={}", intentName);
-        for (String slotName : intent.getSlots().keySet()) {
-            log.debug("slotName={}, slotValue={}", slotName, intent.getSlot(slotName).getValue());
-        }
-
-        if ("Choice".equals(intentName)) {
-            return speakNextPassage(session, intent.getSlot("Choice").getValue());
-        } else if ("Choose".equals(intentName)) {
-            return speakNextPassage(session, intent.getSlot("Choice").getValue());
-        } else if ("AMAZON.HelpIntent".equals(intentName)) {
-            return getHelp();
-        } else if ("AMAZON.StopIntent".equals(intentName)) {
-            PlainTextOutputSpeech outputSpeech = new PlainTextOutputSpeech();
-            outputSpeech.setText("Goodbye");
-
-            return SpeechletResponse.newTellResponse(outputSpeech);
-        } else if ("AMAZON.CancelIntent".equals(intentName)) {
-            PlainTextOutputSpeech outputSpeech = new PlainTextOutputSpeech();
-            outputSpeech.setText("Goodbye");
-
-            return SpeechletResponse.newTellResponse(outputSpeech);
-        } else {
-            throw new SpeechletException("Invalid Intent");
-        }
-    }
-
-    @Override
-    public void onSessionEnded(final SessionEndedRequest request, final Session session)
-            throws SpeechletException {
-        log.info("onSessionEnded requestId={}, sessionId={}", request.getRequestId(),
-                session.getSessionId());
-
-        clearQuestInstance(session);
     }
 
     /**
@@ -216,10 +196,9 @@ public class QuestGameSpeechlet implements Speechlet {
 
         SpeechletResponse response = null;
 
-        if(noResponse) {
+        if (noResponse) {
             response = SpeechletResponse.newTellResponse(outputSpeech);
-        }
-        else {
+        } else {
             response = SpeechletResponse.newAskResponse(outputSpeech, reprompt);
         }
 
@@ -271,5 +250,33 @@ public class QuestGameSpeechlet implements Speechlet {
             }
         }
         return q;
+    }
+
+    @Override
+    public void onSessionStarted(final SessionStartedRequest request, final Session session)
+            throws SpeechletException {
+        log.info("onSessionStarted requestId={}, sessionId={}", request.getRequestId(),
+                session.getSessionId());
+
+        // any initialization logic goes here
+    }
+
+    @Override
+    public void onSessionEnded(final SessionEndedRequest request, final Session session)
+            throws SpeechletException {
+        log.info("onSessionEnded requestId={}, sessionId={}", request.getRequestId(),
+                session.getSessionId());
+
+        clearQuestInstance(session);
+    }
+
+    @Override
+    public SpeechletResponse onLaunch(final LaunchRequest request, final Session session)
+            throws SpeechletException {
+        log.info("onLaunch requestId={}, sessionId={}", request.getRequestId(),
+                session.getSessionId());
+
+        // Here we are prompting the user for input
+        return speakNextPassage(session);
     }
 }
