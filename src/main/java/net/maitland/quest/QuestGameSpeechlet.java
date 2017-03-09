@@ -97,9 +97,6 @@ public class QuestGameSpeechlet implements Speechlet {
 
         try {
 
-            // convert choice number
-            int choice = Integer.parseInt(choiceNumber);
-
             // Get quest
             Quest quest = getQuest();
 
@@ -107,27 +104,41 @@ public class QuestGameSpeechlet implements Speechlet {
             Game game = getGame(session, quest);
             GameStation station = null;
 
-            // add quest info if just starting
-            if (choice == 0 && includeIntroAtStart) {
-                response.append(quest.getAbout().getTitle());
-                response.append(" by ");
-                response.append(quest.getAbout().getAuthor());
-                response.append('\n');
-                response.append(quest.getAbout().getIntro());
-                response.append('\n');
-            }
+            try {
 
-            // keep adding text until zero or more than 1 choice
-            while (station == null || station.getChoices().size() == 1) {
-                choice = station == null ? choice : 1;
-                game.setChoiceIndex(choice);
-                station = quest.getNextStation(game);
+                // convert choice number
+                int choice = Integer.parseInt(choiceNumber);
+
+                // add quest info if just starting
+                if (choice == 0 && includeIntroAtStart) {
+                    response.append(quest.getAbout().getTitle());
+                    response.append(" by ");
+                    response.append(quest.getAbout().getAuthor());
+                    response.append('\n');
+                    response.append(quest.getAbout().getIntro());
+                    response.append('\n');
+                }
+
+                // keep adding text until zero or more than 1 choice
+                while (station == null || station.getChoices().size() == 1) {
+                    choice = station == null ? choice : 1;
+                    game.setChoiceIndex(choice);
+                    station = quest.getNextStation(game);
+                    response.append(getStationPassage(station));
+                }
+
+                // quest has ended
+                if (response.length() == 0 || station.getChoices().size() == 0) {
+                    clearQuestInstance(session);
+                    response.append("Do you want to play again ?");
+                }
+
+            } catch (Exception e) {
+
+                log.error("Error getting next passage.", e);
+                response.append("I had a problem processing your choice.");
+                station = quest.getCurrentStation(game);
                 response.append(getStationPassage(station));
-            }
-
-            if (response.length() == 0 || station.getChoices().size() == 0) {
-                clearQuestInstance(session);
-                response.append("Do you want to play again ?");
             }
 
         } catch (Exception e) {
