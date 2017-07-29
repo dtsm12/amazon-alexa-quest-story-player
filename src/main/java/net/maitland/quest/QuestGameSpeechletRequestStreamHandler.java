@@ -5,6 +5,8 @@
 package net.maitland.quest;
 
 import com.amazon.speech.speechlet.lambda.SpeechletRequestStreamHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -15,15 +17,25 @@ import java.util.Set;
  */
 public final class QuestGameSpeechletRequestStreamHandler extends
         SpeechletRequestStreamHandler {
-    private static final Set<String> supportedApplicationIds;
+    private static Set<String> supportedApplicationIds = null;
+    private static final Logger log = LoggerFactory.getLogger(QuestGameSpeechletRequestStreamHandler.class);
 
     static {
+
+        log.info("Loading supported application ids");
         /*
          * This Id can be found on https://developer.amazon.com/edw/home.html#/ "Edit" the relevant
          * Alexa Skill and put the relevant Application Ids in this Set.
          */
-        supportedApplicationIds = new HashSet<>();
-        supportedApplicationIds.add("amzn1.ask.skill.22191f24-1113-41c7-8419-a6787a54da7b");
+        try {
+            supportedApplicationIds = QuestGameSpeechletProperties.getSupportedApplicationIds();
+        }
+        catch(Exception e)
+        {
+            log.error("Error getting supported application ids: " + e.getMessage());
+        }
+
+        log.info("Loaded supported application ids: " + supportedApplicationIds);
     }
 
     public QuestGameSpeechletRequestStreamHandler() {

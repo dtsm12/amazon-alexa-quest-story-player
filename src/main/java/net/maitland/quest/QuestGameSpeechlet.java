@@ -16,13 +16,13 @@ import com.amazon.speech.ui.Reprompt;
 import net.maitland.quest.model.*;
 import net.maitland.quest.model.Game;
 import net.maitland.quest.parser.sax.SaxQuestParser;
+import net.maitland.quest.player.ChoiceNotPossibleException;
 import net.maitland.quest.player.ConsolePlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +32,23 @@ import java.util.Map;
 public class QuestGameSpeechlet implements Speechlet {
     private static final Logger log = LoggerFactory.getLogger(QuestGameSpeechlet.class);
 
+    private static final String SESSION_MODE = "SESSION_MODE";
+    private static final String SESSION_MODE_GAME = "GAME";
+    private static final String SESSION_MODE_HELP = "HELP";
+    private static final String SESSION_MODE_RESTART = "RESTART";
     private static final String GAME_INSTANCE = "GAME_INSTANCE";
+
+    private static final int START_STATION = 0;
+    private static final int CURRENT_STATION = -1;
+
+    @Override
+    public SpeechletResponse onLaunch(final LaunchRequest request, final Session session)
+            throws SpeechletException {
+        log.info("onLaunch requestId={}, sessionId={}", request.getRequestId(),
+                session.getSessionId());
+
+        return speakFirstPassage(session);
+    }
 
     @Override
     public SpeechletResponse onIntent(final IntentRequest request, final Session session)
@@ -48,47 +64,95 @@ public class QuestGameSpeechlet implements Speechlet {
             log.debug("slotName={}, slotValue={}", slotName, intent.getSlot(slotName).getValue());
         }
 
-        if ("Choice".equals(intentName)) {
-            return speakNextPassage(session, intent.getSlot("Choice").getValue());
-        } else if ("Choose".equals(intentName)) {
-            return speakNextPassage(session, intent.getSlot("Choice").getValue());
-        } else if ("AMAZON.YesIntent".equals(intentName)) {
-            return restartQuest(session);
-        } else if ("AMAZON.NoIntent".equals(intentName)) {
-            clearQuestInstance(session);
-            PlainTextOutputSpeech outputSpeech = new PlainTextOutputSpeech();
-            outputSpeech.setText("Goodbye");
-            return SpeechletResponse.newTellResponse(outputSpeech);
-        } else if ("AMAZON.HelpIntent".equals(intentName)) {
-            return getHelp();
-        } else if ("AMAZON.StopIntent".equals(intentName)) {
-            PlainTextOutputSpeech outputSpeech = new PlainTextOutputSpeech();
-            outputSpeech.setText("Goodbye");
-            return SpeechletResponse.newTellResponse(outputSpeech);
-        } else if ("AMAZON.CancelIntent".equals(intentName)) {
-            PlainTextOutputSpeech outputSpeech = new PlainTextOutputSpeech();
-            outputSpeech.setText("Goodbye");
+        SpeechletResponse response = null;
+        String sessionMode = (String) session.getAttribute(SESSION_MODE);
 
-            return SpeechletResponse.newTellResponse(outputSpeech);
-        } else {
-            throw new SpeechletException("Invalid Intent");
+        switch (intentName) {
+            case "Choose":
+            case "ChoiceIntent":
+                response = speakNextPassage(session, intent.getSlot("Choice").getValue());
+                break;
+
+            case "AMAZON.StopIntent":
+            case "AMAZON.CancelIntent":
+                response = endSession();
+                break;
+
+            case "AMAZON.HelpIntent":
+                response = provideHelp(session);
+                break;
+
+            case "AMAZON.YesIntent":
+            case "AMAZON.NoIntent":
+                if (SESSION_MODE_RESTART.equals(sessionMode)) {
+                    response = "AMAZON.YesIntent".equals(intentName) ? restartQuest(session) : endSession();
+                }
+                else if (SESSION_MODE_HELP.equals(sessionMode)) {
+                    response = speakCurrentPassage(session, "AMAZON.YesIntent".equals(intentName));
+                }
+                else
+                {
+                    response = speakCurrentPassage(session, false);
+                }
+                break;
+
+            default:
+                response = speakCurrentPassage(session, false);
+                break;
         }
+
+        return response;
+    }
+
+    protected SpeechletResponse endSession() {
+        PlainTextOutputSpeech outputSpeech = new PlainTextOutputSpeech();
+        outputSpeech.setText("Goodbye");
+        return SpeechletResponse.newTellResponse(outputSpeech);
+    }
+
+    protected SpeechletResponse provideHelp(Session session) {
+        // set mode to help
+        session.setAttribute(SESSION_MODE, SESSION_MODE_HELP);
+
+        StringBuilder response = new StringBuilder();
+        response.append("You must choose one of the options by saying \"Option\" and then the number of your choice. ");
+        response.append("For example you might say \"Option 1\". ");
+        response.append("Do you want to hear the last section again ?");
+        return newAskResponse(response.toString(), response.toString(), false);
+    }
+
+    public SpeechletResponse speakFirstPassage(Session session) {
+        return speakNextPassage(session, START_STATION, true, true);
+    }
+
+    public SpeechletResponse speakCurrentPassage(Session session, boolean speakText) {
+        return speakNextPassage(session, CURRENT_STATION, false, speakText);
+    }
+
+    public SpeechletResponse speakNextPassage(Session session, String choiceNumber) {
+
+        SpeechletResponse response = null;
+
+        try {
+            // convert choice number
+            int choice = Integer.parseInt(choiceNumber);
+            response = speakNextPassage(session, choice, true, true);
+        } catch (NumberFormatException e) {
+            response = speakCurrentPassage(session, false);
+        }
+
+        return response;
     }
 
     protected SpeechletResponse restartQuest(final Session session) {
         clearQuestInstance(session);
-        return speakNextPassage(session, "0", false);
+        return speakNextPassage(session, START_STATION, false, true);
     }
 
-    public SpeechletResponse speakNextPassage(Session session) {
-        return speakNextPassage(session, "0");
-    }
+    public SpeechletResponse speakNextPassage(Session session, int choice, boolean includeIntroAtStart, boolean speakText) {
 
-    public SpeechletResponse speakNextPassage(Session session, String choiceNumber) {
-        return speakNextPassage(session, choiceNumber, true);
-    }
-
-    public SpeechletResponse speakNextPassage(Session session, String choiceNumber, boolean includeIntroAtStart) {
+        // set mode to game
+        session.setAttribute(SESSION_MODE, SESSION_MODE_GAME);
 
         // response text
         StringBuilder response = new StringBuilder();
@@ -106,44 +170,59 @@ public class QuestGameSpeechlet implements Speechlet {
 
             try {
 
-                // convert choice number
-                int choice = Integer.parseInt(choiceNumber);
-
                 // add quest info if just starting
                 if (choice == 0 && includeIntroAtStart) {
                     response.append(quest.getAbout().getTitle());
-                    response.append(" by ");
-                    response.append(quest.getAbout().getAuthor());
                     response.append('\n');
                     response.append(quest.getAbout().getIntro());
                     response.append('\n');
                 }
 
-                // keep adding text until zero or more than 1 choice
-                while (station == null || station.getChoices().size() == 1) {
-                    choice = station == null ? choice : 1;
+                // get next or current station
+                if (choice == -1) {
+                    station = quest.getCurrentStation(game);
+                } else {
                     game.setChoiceIndex(choice);
                     station = quest.getNextStation(game);
-                    response.append(getStationPassage(station));
+                }
+                response.append(getStationPassage(station, speakText));
+
+                // keep adding text until zero or more than 1 choice
+                while (station.getChoices().size() == 1) {
+                    game.setChoiceIndex(1);
+                    station = quest.getNextStation(game);
+                    response.append(getStationPassage(station, speakText));
                 }
 
                 // quest has ended
                 if (response.length() == 0 || station.getChoices().size() == 0) {
                     clearQuestInstance(session);
+
+                    // set mode to restart
+                    session.setAttribute(SESSION_MODE, SESSION_MODE_RESTART);
+
                     response.append("Do you want to play again ?");
                 }
 
             } catch (Exception e) {
 
                 log.error("Error getting next passage.", e);
-                response.append("I had a problem processing your choice.");
+
+                if(e instanceof ChoiceNotPossibleException) {
+                    response.append(e.getMessage());
+                }
+                else {
+                    response.append("I had a problem processing your choice.");
+                }
+                response.append('\n');
                 station = quest.getCurrentStation(game);
-                response.append(getStationPassage(station));
+                response.append(getStationPassage(station, true));
             }
 
         } catch (Exception e) {
-            log.error("Error getting next passage.", e);
+            log.error("Error getting quest or game state.", e);
             response.append("Encountered the following error.");
+            response.append('\n');
             response.append(e.getMessage());
             hasEnded = true;
             clearQuestInstance(session);
@@ -178,17 +257,6 @@ public class QuestGameSpeechlet implements Speechlet {
     }
 
     /**
-     * Creates a {@code SpeechletResponse} for the HelpIntent.
-     *
-     * @return SpeechletResponse spoken and visual response for the given intent
-     */
-    private SpeechletResponse getHelp() {
-        String speechOutput =
-                "This is a story. Good eh?";
-        return newAskResponse(speechOutput, speechOutput, true);
-    }
-
-    /**
      * Wrapper for creating the Ask response. The OutputSpeech and {@link Reprompt} objects are
      * created from the input strings.
      *
@@ -216,11 +284,13 @@ public class QuestGameSpeechlet implements Speechlet {
         return response;
     }
 
-    protected String getStationPassage(GameStation questStation) {
+    protected String getStationPassage(GameStation questStation, boolean speakText) {
         List<GameChoice> choices;
         StringBuilder passage = new StringBuilder();
 
-        passage.append(questStation.getText());
+        if (speakText) {
+            passage.append(questStation.getText());
+        }
 
         choices = questStation.getChoices();
 
@@ -247,7 +317,8 @@ public class QuestGameSpeechlet implements Speechlet {
         Quest q = null;
         InputStream is = null;
         try {
-            is = ConsolePlayer.class.getClassLoader().getResourceAsStream("chance-quest.xml");
+            String questFileName = QuestGameSpeechletProperties.getQuestFileName();
+            is = this.getClass().getClassLoader().getResourceAsStream(questFileName);
             SaxQuestParser qp = new SaxQuestParser();
             q = qp.parseQuest(is);
 
@@ -279,15 +350,5 @@ public class QuestGameSpeechlet implements Speechlet {
                 session.getSessionId());
 
         clearQuestInstance(session);
-    }
-
-    @Override
-    public SpeechletResponse onLaunch(final LaunchRequest request, final Session session)
-            throws SpeechletException {
-        log.info("onLaunch requestId={}, sessionId={}", request.getRequestId(),
-                session.getSessionId());
-
-        // Here we are prompting the user for input
-        return speakNextPassage(session);
     }
 }

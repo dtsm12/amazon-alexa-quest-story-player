@@ -1,12 +1,29 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>maitland.net</groupId>
+    <groupId>net.maitland</groupId>
     <artifactId>amazon-alexa-quest-story-player</artifactId>
     <packaging>jar</packaging>
-    <version>1.1.0</version>
+    <version>2.1.0</version>
     <name>Amazon Alexa Quest Story Player</name>
+    <description>
+        Library to build a Alexa Skill Lambda for a QuestML authored story.
+        Dependent project should include a quest.properties file.
+        quest.properties should contain two type of properties:
 
+        1) applicationId's which are the Alex skill ID. Each applicationId property name should have an incrementing index suffix
+        e.g. applicationId0=amzn1.ask.skill.22191f24-1113-41c7-8419-a6787a54da7b
+        e.g. applicationId1=amzn1.ask.skill.5fa5564b-616a-4aac-afa5-0738431e2d33
+
+        2) questFile which is the name of the XML file using QuestML (http://questml.com/) to describe the story.
+        e.g. questFile=chance-quest.xml
+
+    </description>
+
+    <properties>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+    </properties>
 
     <scm>
         <connection>scm:git:https://github.com/dtsm12/amazon-alexa-quest-story-player.git</connection>
@@ -97,30 +114,6 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
-    <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.3</version>
-                    <configuration>
-                        <source>1.8</source>
-                        <target>1.8</target>
-                    </configuration>
-                </plugin>
-                <plugin>
-                    <artifactId>maven-assembly-plugin</artifactId>
-                    <configuration>
-                        <descriptorRefs>
-                            <descriptorRef>jar-with-dependencies</descriptorRef>
-                        </descriptorRefs>
-                    </configuration>
-                </plugin>
-            </plugins>
-        </pluginManagement>
-    </build>
 
     <repositories>
         <repository>
