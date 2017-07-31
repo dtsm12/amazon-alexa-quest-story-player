@@ -136,7 +136,7 @@ public class QuestGameSpeechlet implements Speechlet {
         try {
             // convert choice number
             int choice = Integer.parseInt(choiceNumber);
-            response = speakNextPassage(session, choice, true, true);
+            response = speakNextPassage(session, choice, false, true);
         } catch (NumberFormatException e) {
             response = speakCurrentPassage(session, false);
         }
@@ -159,6 +159,9 @@ public class QuestGameSpeechlet implements Speechlet {
 
         boolean hasEnded = false;
 
+        // check for invalid zero choice before we set game in session
+        boolean zeroChoice = (choice == 0 && session.getAttribute(GAME_INSTANCE) != null);
+
         try {
 
             // Get quest
@@ -169,6 +172,12 @@ public class QuestGameSpeechlet implements Speechlet {
             GameStation station = null;
 
             try {
+
+                // handle mis-heard/chosen zero option during game
+                if (zeroChoice)
+                {
+                    throw new Exception("Choice zero heard while game in progress");
+                }
 
                 // add quest info if just starting
                 if (choice == 0 && includeIntroAtStart) {
